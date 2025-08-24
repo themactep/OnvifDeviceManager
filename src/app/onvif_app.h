@@ -31,6 +31,10 @@ void OnvifApp__destroy(OnvifApp* self);
 void OnvifApp__show_msg_dialog(OnvifApp * self, OnvifMgrMsgDialog * msg_dialog);
 EventQueue * OnvifApp__get_EventQueue(OnvifApp * self);
 
+// Forward declaration for credentials
+typedef struct _AppSettingsCredentials AppSettingsCredentials;
+AppSettingsCredentials * OnvifApp__get_credentials(OnvifApp * self);
+
 G_END_DECLS
 
 #endif

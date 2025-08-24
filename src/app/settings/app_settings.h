@@ -6,12 +6,14 @@
 
 #include "app_settings_stream.h"
 #include "app_settings_discovery.h"
+#include "app_settings_credentials.h"
 
 typedef struct _AppSettings AppSettings;
 typedef enum _AppSettingsType {
     APPSETTING_INVALID = -1,
     APPSETTING_STREAM_TYPE = 0,
     APPSETTING_DISCOVERY_TYPE = 1,
+    APPSETTING_CREDENTIALS_TYPE = 2,
 } AppSettingsType;
 
 struct _AppSettings {
@@ -25,6 +27,7 @@ struct _AppSettings {
 
     AppSettingsStream * stream;
     AppSettingsDiscovery * discovery;
+    AppSettingsCredentials * credentials;
 
     OnvifApp * app;
 };
@@ -33,5 +36,8 @@ AppSettings * AppSettings__create(OnvifApp * app);
 void AppSettings__destroy(AppSettings* dialog);
 void AppSettings__set_details_loading_handle(AppSettings * self, GtkWidget * widget);
 GtkWidget * AppSettings__get_widget(AppSettings * self);
+
+// Credentials access
+AppSettingsCredentials * AppSettings__get_credentials(AppSettings * self);
 
 #endif

@@ -53,6 +53,7 @@ onvifmgr_SOURCES = $(top_srcdir)/src/onvif-mgr.c \
 					$(top_srcdir)/src/app/dialog/omgr_profiles_dialog.c \
 					$(top_srcdir)/src/app/dialog/omgr_encryoted_store_dialog.c \
 					$(top_srcdir)/src/app/settings/app_settings_discovery.c \
+					$(top_srcdir)/src/app/settings/app_settings_credentials.c \
 					$(top_srcdir)/src/app/settings/app_settings_stream.c \
 					$(top_srcdir)/src/app/settings/app_settings.c \
 					$(top_srcdir)/src/utils/c_ownable_interface.c \

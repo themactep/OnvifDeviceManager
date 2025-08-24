@@ -7,6 +7,7 @@
 #include "details/onvif_details.h"
 #include "onvif_nvt.h"
 #include "settings/app_settings.h"
+#include "settings/app_settings_credentials.h"
 #include "task_manager.h"
 #include "clogger.h"
 #include "gui_utils.h"
@@ -159,11 +160,39 @@ void _display_onvif_device(QueueEvent * qevt, void * user_data){
     if(!ONVIFMGR_DEVICEROWROW_HAS_OWNER(omgr_device) || QueueEvent__is_cancelled(qevt)){
         return;
     }
-    
-    OnvifDevice * odev = OnvifMgrDeviceRow__get_device(omgr_device);
 
-    /* Authentication check */
-    OnvifDevice__authenticate(odev);
+    OnvifDevice * odev = OnvifMgrDeviceRow__get_device(omgr_device);
+    OnvifApp * app = OnvifMgrDeviceRow__get_app(omgr_device);
+    OnvifAppPrivate *priv = OnvifApp__get_instance_private(app);
+
+    /* Try stored credentials first */
+    if (priv->settings && priv->settings->credentials) {
+        int credential_count = AppSettingsCredentials__get_credential_count(priv->settings->credentials);
+        for (int i = 0; i < credential_count; i++) {
+            if (QueueEvent__is_cancelled(qevt) || !ONVIFMGR_DEVICEROWROW_HAS_OWNER(omgr_device)) {
+                return;
+            }
+
+            CredentialEntry * entry = AppSettingsCredentials__get_credential(priv->settings->credentials, i);
+            if (entry && entry->username && entry->password) {
+                C_INFO("Trying stored credential %d: %s", i, entry->description ? entry->description : entry->username);
+                OnvifDevice__set_credentials(odev, entry->username, entry->password);
+
+                /* Authentication check with stored credentials */
+                OnvifDevice__authenticate(odev);
+
+                if (OnvifDevice__is_authenticated(odev)) {
+                    C_INFO("Authentication successful with stored credential: %s", entry->description ? entry->description : entry->username);
+                    break; // Success! Stop trying other credentials
+                }
+            }
+        }
+    }
+
+    /* If no stored credentials worked, try without credentials (anonymous) */
+    if (!OnvifDevice__is_authenticated(odev)) {
+        OnvifDevice__authenticate(odev);
+    }
 
     if(!ONVIFMGR_DEVICEROWROW_HAS_OWNER(omgr_device) || QueueEvent__is_cancelled(qevt)){
         return;
@@ -1122,4 +1151,11 @@ EventQueue * OnvifApp__get_EventQueue(OnvifApp* self){
     g_return_val_if_fail (ONVIFMGR_IS_APP (self), NULL);
     OnvifAppPrivate *priv = OnvifApp__get_instance_private (self);
     return priv->queue;
+}
+
+AppSettingsCredentials * OnvifApp__get_credentials(OnvifApp * self){
+    g_return_val_if_fail (self != NULL, NULL);
+    g_return_val_if_fail (ONVIFMGR_IS_APP (self), NULL);
+    OnvifAppPrivate *priv = OnvifApp__get_instance_private (self);
+    return AppSettings__get_credentials(priv->settings);
 }

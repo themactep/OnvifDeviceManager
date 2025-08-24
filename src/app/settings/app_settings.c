@@ -1,5 +1,6 @@
 #include "app_settings.h"
 #include "app_settings_discovery.h"
+#include "app_settings_credentials.h"
 #include "clogger.h"
 #include <pwd.h>
 #include <errno.h>
@@ -11,6 +12,7 @@
 void set_settings_state(AppSettings * settings, int state){
     AppSettingsStream__set_state(settings->stream, state);
     AppSettingsDiscovery__set_state(settings->discovery, state);
+    AppSettingsCredentials__set_state(settings->credentials, state);
     //More settings to add here
 }
 
@@ -28,7 +30,8 @@ void priv_AppSettings_state_changed(void * data){
     AppSettings * self = (AppSettings*) data;
     //More settings to add here
     if(AppSettingsStream__get_state(self->stream) ||
-        AppSettingsDiscovery__get_state(self->discovery)){
+        AppSettingsDiscovery__get_state(self->discovery) ||
+        AppSettingsCredentials__get_state(self->credentials)){
         set_button_state(self,TRUE);
     } else {
         set_button_state(self,FALSE);
@@ -37,7 +40,8 @@ void priv_AppSettings_state_changed(void * data){
 
 void priv_AppSettings_state_changed_cb(GtkWidget * widget, AppSettings * self){
     if(AppSettingsStream__get_state(self->stream) ||
-        AppSettingsDiscovery__get_state(self->discovery)){
+        AppSettingsDiscovery__get_state(self->discovery) ||
+        AppSettingsCredentials__get_state(self->credentials)){
         set_button_state(self,TRUE);
     } else {
         set_button_state(self,FALSE);
@@ -111,6 +115,7 @@ struct extract_data_from_gui_data{
     AppSettings * app_settings;
     char * stream_data;
     char * discovery_data;
+    char * credentials_data;
     P_COND_TYPE cond;
     P_MUTEX_TYPE lock;
     int done;
@@ -120,6 +125,7 @@ gboolean idle_extract_data_from_gui(void * user_data){
     struct extract_data_from_gui_data * data = (struct extract_data_from_gui_data *) user_data;
     data->stream_data = AppSettingsStream__save(data->app_settings->stream);
     data->discovery_data = AppSettingsDiscovery__save(data->app_settings->discovery);
+    data->credentials_data = AppSettingsCredentials__save(data->app_settings->credentials);
     data->done = 1;
     P_COND_BROADCAST(data->cond);
     return FALSE;
@@ -148,6 +154,7 @@ void _save_settings(QueueEvent * qevt, void * user_data){
 
         fprintf(fptr,"%s\n\n",data.stream_data);
         fprintf(fptr,"%s\n\n",data.discovery_data);
+        fprintf(fptr,"%s\n\n",data.credentials_data);
         //More settings to add here
         
         fclose(fptr);
@@ -171,6 +178,7 @@ void apply_settings (GtkWidget *widget, AppSettings * settings) {
 void AppSettings__reset_settings(AppSettings * self){
     AppSettingsStream__reset(self->stream);
     AppSettingsDiscovery__reset(self->discovery);
+    AppSettingsCredentials__reset(self->credentials);
     //More settings to add here
 }
 
@@ -206,6 +214,7 @@ void AppSettings__create_ui(AppSettings * self){
     gtk_grid_attach (GTK_GRID (self->widget), notebook, 0, 0, 1, 1);
 
     add_panel(notebook, "Discovery", AppSettingsDiscovery__get_widget(self->discovery));
+    add_panel(notebook, "Credentials", AppSettingsCredentials__get_widget(self->credentials));
     add_panel(notebook, "Stream", GTK_WIDGET(self->stream));
 
     //More settings to add here
@@ -295,6 +304,9 @@ void AppSettings__load_settings(AppSettings * self){
                     } else if(strcmp(AppSettingsDiscovery__get_category(self->discovery),cat) == 0){
                         category = APPSETTING_DISCOVERY_TYPE;
                         C_INFO("[%s]",AppSettingsDiscovery__get_category(self->discovery));
+                    } else if(strcmp(AppSettingsCredentials__get_category(self->credentials),cat) == 0){
+                        category = APPSETTING_CREDENTIALS_TYPE;
+                        C_INFO("[%s]",AppSettingsCredentials__get_category(self->credentials));
                     }//More settings to add here
 
                     continue;
@@ -334,6 +346,11 @@ void AppSettings__load_settings(AppSettings * self){
                                 C_ERROR("Unknown discovery property %s=%s",key,val);
                             }//More settings to add here
                             break;
+                        case APPSETTING_CREDENTIALS_TYPE:
+                            if(!AppSettingsCredentials__set_property(self->credentials,key,val)){
+                                C_ERROR("Unknown credentials property %s=%s",key,val);
+                            }
+                            break;
                         default:
                             //TODO Warning
                             break;
@@ -361,6 +378,7 @@ AppSettings * AppSettings__create(OnvifApp * app){
     self->stream = AppSettingsStream__new();
     g_signal_connect(self->stream,"settings-changed",G_CALLBACK(priv_AppSettings_state_changed_cb),self);
     self->discovery = AppSettingsDiscovery__create(priv_AppSettings_state_changed,self);
+    self->credentials = AppSettingsCredentials__create(priv_AppSettings_state_changed,self);
     AppSettings__load_settings(self);
     AppSettings__create_ui(self);
     AppSettings__reset_settings(self);
@@ -371,6 +389,7 @@ AppSettings * AppSettings__create(OnvifApp * app){
 void AppSettings__destroy(AppSettings* self){
     if(self){
         AppSettingsDiscovery__destroy(self->discovery);
+        AppSettingsCredentials__destroy(self->credentials);
         free(self);
     }
 }
@@ -381,4 +400,8 @@ void AppSettings__set_details_loading_handle(AppSettings * self, GtkWidget * wid
 
 GtkWidget * AppSettings__get_widget(AppSettings * self){
     return self->widget;
+}
+
+AppSettingsCredentials * AppSettings__get_credentials(AppSettings * self){
+    return self->credentials;
 }
